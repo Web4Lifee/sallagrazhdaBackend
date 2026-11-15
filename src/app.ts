@@ -20,6 +20,21 @@ import { createServices, type Services } from './services/index.js';
 
 export type AppDeps = { config: Config; db: Db; services?: Services };
 
+const LOCAL_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d{1,5})?$/;
+
+/**
+ * Which browser origins may read API responses. Listed CORS_ORIGINS always; in development also
+ * http://localhost:<any port>, because Expo picks another port when 8081 is busy.
+ * Never in production. Requests without an Origin (the native app, curl) don't use CORS at all.
+ */
+export function isAllowedOrigin(
+  origin: string | undefined,
+  config: Pick<Config, 'corsOrigins' | 'isProduction'>,
+): boolean {
+  if (!origin) return false;
+  return config.corsOrigins.includes(origin) || (!config.isProduction && LOCAL_ORIGIN.test(origin));
+}
+
 /** Builds the HTTP app without listening, so tests can drive it with app.inject(). */
 export async function buildApp({
   config,
@@ -51,10 +66,11 @@ export async function buildApp({
     contentSecurityPolicy: { directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } },
   });
 
-  // Native apps don't need CORS. Only listed browser origins (e.g. the web build) may call the API.
-  if (config.corsOrigins.length) {
+  // Native apps don't need CORS. Only listed browser origins (e.g. the web build) may call the API,
+  // plus, outside production, the app's web preview on localhost (any port).
+  if (config.corsOrigins.length || !config.isProduction) {
     await app.register(cors, {
-      origin: config.corsOrigins,
+      origin: (origin, callback) => callback(null, isAllowedOrigin(origin, config)),
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
       allowedHeaders: ['Authorization', 'Content-Type'],
       maxAge: 600,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { isAllowedOrigin } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import { checkPasswordStrength, hashPassword, needsRehash, verifyPassword } from '../src/lib/password.js';
 import { hasAtMostTwoDecimals, toCents } from '../src/lib/money.js';
@@ -126,5 +127,30 @@ describe('config', () => {
     expect(() => loadConfig({ ...base, NODE_ENV: 'production', CORS_ORIGINS: 'http://example.com' })).toThrow(
       /https/,
     );
+  });
+});
+
+describe('CORS', () => {
+  const dev = { corsOrigins: [] as string[], isProduction: false };
+  const prod = { corsOrigins: ['https://app.example.com'], isProduction: true };
+
+  it('allows the web preview on any localhost port in development only', () => {
+    for (const origin of ['http://localhost:8081', 'http://localhost:8083', 'http://127.0.0.1:19006']) {
+      expect(isAllowedOrigin(origin, dev)).toBe(true);
+      expect(isAllowedOrigin(origin, prod)).toBe(false);
+    }
+  });
+
+  it('never allows look-alike or unlisted origins', () => {
+    for (const origin of [
+      'http://localhost.evil.com',
+      'https://evil.com',
+      'http://192.168.1.5:8081',
+      undefined,
+    ]) {
+      expect(isAllowedOrigin(origin, dev)).toBe(false);
+    }
+    expect(isAllowedOrigin('https://app.example.com', prod)).toBe(true);
+    expect(isAllowedOrigin('https://evil.com', prod)).toBe(false);
   });
 });
