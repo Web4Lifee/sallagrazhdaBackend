@@ -38,11 +38,21 @@ All endpoints are listed in [docs/API.md](docs/API.md).
 
 ### Using it from the app
 
-The local stack already allows the app's web preview (`http://localhost:8081`). To use it from a phone with Expo Go on the same Wi-Fi, expose the API on your network and use `http://<this computer's IP>:3000` as the server address in the app:
+The local stack already allows the app's web preview (`http://localhost` on any port). To use it from a phone with Expo Go on the same Wi-Fi, expose the API on your network and use `http://<this computer's IP>:3000` as the server address in the app (in development the app does this by itself when the address is `localhost`).
+
+Either add `API_BIND=0.0.0.0` to the `.env` file next to `docker-compose.yml` and run `docker compose up -d` (works everywhere), or set it just for one start:
+
+```powershell
+# Windows PowerShell
+$env:API_BIND = "0.0.0.0"; docker compose up -d; Remove-Item Env:API_BIND
+```
 
 ```bash
+# macOS / Linux
 API_BIND=0.0.0.0 docker compose up -d
 ```
+
+Find the computer's IP with `ipconfig` (Windows) or `ipconfig getifaddr en0` (macOS). Run `docker compose up -d` without it afterwards to make the API local-only again.
 
 ## Developing with hot reload
 

@@ -45,8 +45,9 @@ services:
       TZ: Europe/Tirane
       # Outside production the API already accepts the app's web preview on http://localhost:<any port>.
     ports:
-      # Only this computer can reach the API. To test from a phone on the same Wi-Fi, start with
-      # API_BIND=0.0.0.0 docker compose up -d  (then use http://<this computer's IP>:3000 in the app).
+      # Only this computer can reach the API. To test from a phone on the same Wi-Fi, put
+      # API_BIND=0.0.0.0 in .env (works on Windows, macOS and Linux) and run docker compose up -d,
+      # then use http://<this computer's IP>:3000 in the app. Remove it again when you're done.
       - '${API_BIND:-127.0.0.1}:3000:3000'
     depends_on:
       migrate:
