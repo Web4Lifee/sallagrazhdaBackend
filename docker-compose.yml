@@ -43,8 +43,12 @@ services:
       LOG_LEVEL: info
       DATABASE_URL: postgres://sallagrazhda:localdev@db:5432/sallagrazhda
       TZ: Europe/Tirane
+      # Lets the app's web preview (npx expo start --web) call the API from the browser.
+      CORS_ORIGINS: http://localhost:8081
     ports:
-      - '127.0.0.1:3000:3000'
+      # Only this computer can reach the API. To test from a phone on the same Wi-Fi, start with
+      # API_BIND=0.0.0.0 docker compose up -d  (then use http://<this computer's IP>:3000 in the app).
+      - '${API_BIND:-127.0.0.1}:3000:3000'
     depends_on:
       migrate:
         condition: service_completed_successfully

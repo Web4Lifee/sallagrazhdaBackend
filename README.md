@@ -36,6 +36,14 @@ curl http://localhost:3000/v1/sync -H "authorization: Bearer TOKEN_FROM_LOGIN"
 
 All endpoints are listed in [docs/API.md](docs/API.md).
 
+### Using it from the app
+
+The local stack already allows the app's web preview (`http://localhost:8081`). To use it from a phone with Expo Go on the same Wi-Fi, expose the API on your network and use `http://<this computer's IP>:3000` as the server address in the app:
+
+```bash
+API_BIND=0.0.0.0 docker compose up -d
+```
+
 ## Developing with hot reload
 
 Run only the database in Docker and the API on your machine:
