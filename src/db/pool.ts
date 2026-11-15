@@ -1,0 +1,43 @@
+import pg from 'pg';
+
+import type { Config } from '../config.js';
+
+// Return BIGINT (int8) values, e.g. COUNT(*) and money in cents, as JS numbers.
+// Every bigint we store is far below Number.MAX_SAFE_INTEGER (checked by table constraints).
+pg.types.setTypeParser(pg.types.builtins.INT8, (value) => Number(value));
+
+export type Db = pg.Pool;
+export type DbClient = pg.PoolClient;
+/** Anything that can run a query: the pool or a client inside a transaction. */
+export type Queryable = Pick<pg.Pool, 'query'> | Pick<pg.PoolClient, 'query'>;
+
+export function createPool(database: Config['database']): Db {
+  const pool = new pg.Pool({
+    connectionString: database.url,
+    max: database.poolMax,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+    // Stop runaway queries instead of letting them hold connections forever.
+    statement_timeout: 15_000,
+    idle_in_transaction_session_timeout: 30_000,
+    application_name: 'sallagrazhda-backend',
+    ssl: database.ssl === 'disable' ? false : { rejectUnauthorized: database.ssl === 'verify-full' },
+  });
+  return pool;
+}
+
+/** Runs `fn` inside a transaction; commits on success, rolls back on any error. */
+export async function withTransaction<T>(db: Db, fn: (client: DbClient) => Promise<T>): Promise<T> {
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}

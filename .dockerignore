@@ -1,0 +1,19 @@
+# Only what the image needs goes into the build context.
+node_modules
+dist
+coverage
+backups
+.git
+.gitignore
+.gitattributes
+.idea
+.vscode
+.env
+.env.*
+*.log
+Dockerfile
+docker-compose*.yml
+Caddyfile
+docs
+test
+README.md

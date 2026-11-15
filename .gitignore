@@ -1,0 +1,21 @@
+# dependencies and build output
+node_modules/
+dist/
+coverage/
+
+# secrets: never commit real environment files
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# database backups contain personal data
+backups/
+*.sql.gz
+*.dump
+
+# logs and OS / IDE files
+*.log
+.DS_Store
+.idea/
+.vscode/

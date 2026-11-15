@@ -1,0 +1,60 @@
+# LOCAL DEVELOPMENT ONLY — uses a throwaway password and binds ports to 127.0.0.1.
+# On a real server use docker-compose.prod.yml (see docs/DEPLOYMENT.md).
+#
+#   docker compose up --build        # database + migrations + API on http://localhost:3000
+#   docker compose up -d db          # only the database (then run `npm run dev` on your machine)
+
+name: sallagrazhda-dev
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: sallagrazhda
+      POSTGRES_USER: sallagrazhda
+      POSTGRES_PASSWORD: localdev
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - db-data:/var/lib/postgresql
+      # Creates the separate "sallagrazhda_test" database used by `npm test`.
+      - ./scripts/init-test-db.sql:/docker-entrypoint-initdb.d/10-init-test-db.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sallagrazhda -d sallagrazhda']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build: .
+    command: ['node', 'dist/db/migrate.js']
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://sallagrazhda:localdev@db:5432/sallagrazhda
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    build: .
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: info
+      DATABASE_URL: postgres://sallagrazhda:localdev@db:5432/sallagrazhda
+      TZ: Europe/Tirane
+    ports:
+      - '127.0.0.1:3000:3000'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  db-data:

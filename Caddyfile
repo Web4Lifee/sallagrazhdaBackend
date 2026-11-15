@@ -1,0 +1,27 @@
+# Public entry point: gets and renews the HTTPS certificate for DOMAIN automatically
+# (Let's Encrypt) and forwards requests to the API container.
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# A little above the API's largest allowed body (the 10 MB import).
+	request_body {
+		max_size 11MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	reverse_proxy api:3000
+
+	# Caddy leaves Authorization and Cookie headers out of its logs by default.
+	log {
+		output stdout
+		format json
+	}
+}
