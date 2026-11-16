@@ -6,3 +6,8 @@
   command = "npm run typecheck"
   # Holds only robots.txt. Without it Netlify publishes the whole repository as public files.
   publish = "public"
+
+[functions]
+  # Bundle the dependencies into each function. Unbundled, Fastify's light-my-request require()s the
+  # ES-module-only `cookie` package, which fails on Lambda runtimes without require(esm) support.
+  node_bundler = "esbuild"

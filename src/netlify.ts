@@ -37,10 +37,16 @@ export function createNetlifyHandler(): (request: Request, context: FunctionCont
   return async (request, context) => {
     applyNetlifyDefaults();
     // Build on the first request; if that fails (e.g. a bad setting), try again on the next one.
-    api ??= createApi().catch((error: unknown) => {
-      api = undefined;
-      throw error;
-    });
+    api ??= createApi().then(
+      (created) => {
+        created.app.log.info({ node: process.version }, 'function instance started');
+        return created;
+      },
+      (error: unknown) => {
+        api = undefined;
+        throw error;
+      },
+    );
     const { app, db } = await api;
 
     // While the instance was frozen its connections may have been cut on the way to the database.
