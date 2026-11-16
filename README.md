@@ -105,4 +105,4 @@ docs/                  API reference and deployment guide
 - Errors never leak stack traces or SQL; credentials are redacted from logs; responses are `no-store`; security headers via Helmet; CORS closed unless you list origins.
 - Containers run as a non-root user with a read-only filesystem and no Linux capabilities; the database is on an internal network with no internet access; HTTPS via Caddy with automatic certificates; daily backups.
 
-Going live: follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+Going live: free on Netlify + Supabase with [docs/NETLIFY.md](docs/NETLIFY.md), or on your own server with [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
