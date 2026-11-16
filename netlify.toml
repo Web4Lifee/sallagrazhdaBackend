@@ -1,12 +1,8 @@
-# Netlify hosting: the API runs on Netlify Server from netlify/server/index.ts, with a daily
-# scheduled function in netlify/functions/. Setup steps: docs/NETLIFY.md
+# Netlify hosting: the API runs as the Netlify Function netlify/functions/api.ts, plus the hourly
+# netlify/functions/housekeeping.ts. Setup steps: docs/NETLIFY.md
 
 [build]
-  # Netlify bundles the server itself; this only stops a deploy whose code doesn't typecheck.
+  # Netlify bundles the functions itself; this only stops a deploy whose code doesn't typecheck.
   command = "npm run typecheck"
   # Holds only robots.txt. Without it Netlify publishes the whole repository as public files.
   publish = "public"
-
-[server]
-  # EU (Frankfurt), next to the Supabase database in eu-central-1.
-  region = "fra"

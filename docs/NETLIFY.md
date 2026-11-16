@@ -1,23 +1,26 @@
 # Free hosting: Netlify + Supabase
 
-The API runs on [Netlify Server](https://docs.netlify.com/build/server/) and stores its data in a [Supabase](https://supabase.com) PostgreSQL database, both in Frankfurt, both on free plans.
+The API runs as a [Netlify Function](https://docs.netlify.com/build/functions/overview/) and stores its data in a [Supabase](https://supabase.com) PostgreSQL database, both on free plans.
 
 ```
-app ──https──▶ Netlify Server (netlify/server/index.ts) ──TLS──▶ Supabase PostgreSQL (session pooler)
-               ▲ wakes it once a day: netlify/functions/wake-up.ts
+app ──https──▶ Netlify Function netlify/functions/api.ts ──TLS──▶ Supabase PostgreSQL (session pooler)
+               Netlify Function netlify/functions/housekeeping.ts (hourly) ──┘
 ```
 
-`netlify.toml` holds the Netlify settings. Migrations and admin accounts are run from your own computer, never on Netlify.
+- `api.ts` hands every request (except the files in `public/`) to the same Fastify app the Docker setup runs.
+- `housekeeping.ts` runs every hour: it starts seasons whose date has arrived and removes expired sessions. Functions can't run timers in the background.
+- `src/netlify.ts` holds the Netlify-specific setup and defaults; `netlify.toml` the build settings.
+- Migrations and admin accounts are run from your own computer, never on Netlify.
 
 ## 1. Database (Supabase)
 
-1. Create a project: region **Frankfurt (eu-central-1)**, a generated database password of letters and digits. Turn the **Data API** off if offered (migration `002` locks the tables against it either way).
+1. Create a project with a generated database password of letters and digits. Turn the **Data API** off if offered (migration `002` locks the tables against it either way).
 2. Click **Connect**, open **Session pooler** and copy the URI. Put your password in place of `[YOUR-PASSWORD]`.
 3. Create `.env.supabase` next to `package.json` (git ignores it):
 
    ```
    NODE_ENV=production
-   DATABASE_URL=postgresql://postgres.<project-ref>:<password>@aws-0-eu-central-1.pooler.supabase.com:5432/postgres
+   DATABASE_URL=postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
    DATABASE_SSL=require
    DATABASE_POOL_MAX=3
    TZ=Europe/Tirane
@@ -37,20 +40,25 @@ app ──https──▶ Netlify Server (netlify/server/index.ts) ──TLS─�
 3. Deploy, then open `https://<project>.netlify.app/ready`: `{"status":"ok"}` means the API reaches the database.
 4. In the app, use `https://<project>.netlify.app` as the server address (`EXPO_PUBLIC_API_URL`).
 
-Everything else has a default in `netlify/server/index.ts` (production mode, Europe/Tirane time, TLS, 5 connections). An environment variable with the same name overrides it. Netlify reads variables at deploy time, so redeploy after changing one.
+Everything else has a default in `src/netlify.ts` (production mode, Europe/Tirane time, TLS, 2 connections per instance). An environment variable with the same name overrides it. Netlify reads variables at deploy time, so redeploy after changing one.
 
 ## Updating
 
-- Every push to `main` deploys. On the free plan a production deploy costs 15 of the 300 monthly credits, so push finished work, not every small step.
+- Every push to `main` deploys.
 - New migration? Run `npx tsx --env-file=.env.supabase src/db/migrate.ts` **before** pushing the code that needs it.
 - Changed the database password? Update `.env.supabase` and the `DATABASE_URL` variable on Netlify, then redeploy.
 
-## What the free plans mean
+## How it behaves
 
-- **Netlify:** 300 credits a month, a hard limit: when they run out, the site is paused until the next month. Requests cost 2 credits per 10,000. Netlify Server is free during Early Access; Netlify will charge for it after that.
-- **Cold starts:** the server stops after 5 idle minutes, so the first request after a pause waits a few seconds.
-- **Supabase:** 500 MB of data. It pauses projects after 7 days without database activity; the daily wake-up function prevents that. **No automatic backups**: save a copy now and then, for example with `GET /v1/sync` or `pg_dump`.
+- **Region:** on free plans Netlify runs functions in US East (Ohio). Every database query travels to the Supabase region and back, so a Supabase project in US East (Ohio) answers fastest; one in Europe adds about 0.1 s per query.
+- **Cold starts:** a function instance that hasn't run for a while takes a moment to start. After a minute without requests the API also opens a fresh database connection, because Netlify freezes idle instances and their connections can be cut meanwhile.
+- **Rate limits** are counted per function instance. Netlify starts extra instances for requests that arrive at the same time, so the login limit is looser than on a single server.
+
+## Free plan limits
+
+- **Netlify (legacy Free plan):** 125,000 function requests per site per month, plus bandwidth and build minutes. Netlify emails when a site reaches 50% of a limit. Netlify Server (`netlify/server/`) would need a credit-based plan.
+- **Supabase:** 500 MB of data. It pauses projects after 7 days without database activity; the hourly housekeeping prevents that. **No automatic backups**: save a copy now and then, for example with `GET /v1/sync` or `pg_dump`.
 
 ## Logs
 
-Netlify UI → your project → **Logs**: the server's JSON request logs and the daily function's runs. Supabase UI → **Logs** for the database.
+Netlify UI → your project → **Logs → Functions**: `api` shows each request as a JSON line, `housekeeping` its hourly runs. Supabase UI → **Logs** for the database.

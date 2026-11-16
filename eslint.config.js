@@ -18,4 +18,9 @@ export default tseslint.config(
     files: ['src/cli/**', 'src/db/migrate.ts'],
     rules: { 'no-console': 'off' },
   },
+  {
+    // Netlify keeps what functions print as their logs.
+    files: ['netlify/functions/**'],
+    rules: { 'no-console': 'off' },
+  },
 );

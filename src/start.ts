@@ -1,22 +1,22 @@
 import type { FastifyInstance } from 'fastify';
 
 import { buildApp } from './app.js';
-import { loadConfig } from './config.js';
-import { createPool } from './db/pool.js';
+import { loadConfig, type Config } from './config.js';
+import { createPool, type Db } from './db/pool.js';
 import { startScheduler } from './jobs/scheduler.js';
-import { createServices } from './services/index.js';
+import { createServices, type Services } from './services/index.js';
 
-export type RunningApi = {
+export type Api = {
+  config: Config;
+  db: Db;
+  services: Services;
   app: FastifyInstance;
-  /** Stops the background jobs, lets running requests finish, then closes the database. */
+  /** Lets running requests finish, then closes the database. */
   stop: () => Promise<void>;
 };
 
-/**
- * Starts the API from the environment: database pool, HTTP server on HOST:PORT and the
- * background jobs. Used by src/server.ts (Docker, `npm run dev`) and netlify/server/index.ts.
- */
-export async function startApi(): Promise<RunningApi> {
+/** Builds the API from the environment without listening: Netlify Functions hand it requests directly. */
+export async function createApi(): Promise<Api> {
   const config = loadConfig();
   const db = createPool(config.database);
   const services = createServices(db, config);
@@ -25,19 +25,31 @@ export async function startApi(): Promise<RunningApi> {
   // A failed database connection should never crash the process (pg emits these on idle clients).
   db.on('error', (error) => app.log.error({ err: error }, 'database pool error'));
 
-  const stopScheduler = startScheduler(services, app.log, {
-    autoStartSeasons: config.autoStartSeasons,
-    intervalMinutes: config.seasonCheckIntervalMinutes,
-  });
-
-  await app.listen({ host: config.host, port: config.port });
-
   return {
+    config,
+    db,
+    services,
     app,
     async stop() {
-      stopScheduler();
       await app.close();
       await db.end();
+    },
+  };
+}
+
+/** Builds the API, listens on HOST:PORT and runs the background jobs (Docker, `npm run dev`). */
+export async function startApi(): Promise<Api> {
+  const api = await createApi();
+  const stopScheduler = startScheduler(api.services, api.app.log, {
+    autoStartSeasons: api.config.autoStartSeasons,
+    intervalMinutes: api.config.seasonCheckIntervalMinutes,
+  });
+  await api.app.listen({ host: api.config.host, port: api.config.port });
+  return {
+    ...api,
+    async stop() {
+      stopScheduler();
+      await api.stop();
     },
   };
 }

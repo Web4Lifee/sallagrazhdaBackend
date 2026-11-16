@@ -32,6 +32,16 @@ export function createPool(database: Config['database']): Db {
   return pool;
 }
 
+/**
+ * Closes the pool's idle connections; new ones open on demand. For hosts that freeze the process
+ * between requests (Netlify Functions), where an idle connection can be cut without notice.
+ */
+export async function closeIdleConnections(db: Db): Promise<void> {
+  // connect() hands out idle connections first, and release(true) closes instead of returning them.
+  const idle = await Promise.all(Array.from({ length: db.idleCount }, () => db.connect()));
+  for (const client of idle) client.release(true);
+}
+
 /** Runs `fn` inside a transaction; commits on success, rolls back on any error. */
 export async function withTransaction<T>(db: Db, fn: (client: DbClient) => Promise<T>): Promise<T> {
   const client = await db.connect();
