@@ -103,7 +103,6 @@ docs/                  API reference and deployment guide
 - Login is rate-limited (10 attempts / 15 min per IP) on top of a global limit; unknown usernames take as long as wrong passwords.
 - Every input is validated (strict schemas reject unknown fields), every query is parameterized, request bodies are size-limited.
 - Errors never leak stack traces or SQL; credentials are redacted from logs; responses are `no-store`; security headers via Helmet; CORS closed unless you list origins.
-- Every change to people, tickets, settings and seasons is recorded in an `audit_log` table with the user and IP.
 - Containers run as a non-root user with a read-only filesystem and no Linux capabilities; the database is on an internal network with no internet access; HTTPS via Caddy with automatic certificates; daily backups.
 
 Going live: follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).

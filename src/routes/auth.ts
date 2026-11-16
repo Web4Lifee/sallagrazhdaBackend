@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { actorOf, authOf, requireAuth } from '../http/context.js';
+import { authOf, requireAuth } from '../http/context.js';
 import { PASSWORD_MAX_LENGTH } from '../lib/password.js';
 import { parse } from '../lib/validation.js';
 import type { AuthService } from '../services/auth.js';
@@ -38,7 +38,7 @@ export function authRoutes(auth: AuthService, options: { loginRateLimitMax: numb
       secured.get('/v1/auth/me', async (request) => ({ user: authOf(request).user }));
 
       secured.post('/v1/auth/logout', async (request, reply) => {
-        await auth.logout(authOf(request), actorOf(request));
+        await auth.logout(authOf(request));
         return reply.status(204).send();
       });
 
@@ -47,12 +47,7 @@ export function authRoutes(auth: AuthService, options: { loginRateLimitMax: numb
         { config: { rateLimit: { max: options.loginRateLimitMax, timeWindow: '15 minutes' } } },
         async (request, reply) => {
           const body = parse(ChangePasswordBody, request.body);
-          await auth.changePassword(
-            authOf(request),
-            body.currentPassword,
-            body.newPassword,
-            actorOf(request),
-          );
+          await auth.changePassword(authOf(request), body.currentPassword, body.newPassword);
           return reply.status(204).send();
         },
       );

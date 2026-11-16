@@ -70,9 +70,3 @@ export type User = {
   username: string;
   displayName: string;
 };
-
-/** Who is making a change, recorded in the audit log. */
-export type Actor = {
-  userId: string | null;
-  ip: string | null;
-};

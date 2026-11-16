@@ -11,17 +11,23 @@ export type DbClient = pg.PoolClient;
 /** Anything that can run a query: the pool or a client inside a transaction. */
 export type Queryable = Pick<pg.Pool, 'query'> | Pick<pg.PoolClient, 'query'>;
 
+/** Stop runaway queries and forgotten transactions instead of letting them hold connections forever. */
+const SESSION_SETTINGS = 'SET statement_timeout = 15000; SET idle_in_transaction_session_timeout = 30000';
+
 export function createPool(database: Config['database']): Db {
   const pool = new pg.Pool({
     connectionString: database.url,
     max: database.poolMax,
+    // Below the 60 s after which some hosts (e.g. Netlify Server) cut silent outbound connections.
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,
-    // Stop runaway queries instead of letting them hold connections forever.
-    statement_timeout: 15_000,
-    idle_in_transaction_session_timeout: 30_000,
     application_name: 'sallagrazhda-backend',
     ssl: database.ssl === 'disable' ? false : { rejectUnauthorized: database.ssl === 'verify-full' },
+    // Set on each new connection, before it is handed out, rather than as connection parameters,
+    // which poolers such as Supabase's ignore. A failure here fails that checkout.
+    onConnect: async (client) => {
+      await client.query(SESSION_SETTINGS);
+    },
   });
   return pool;
 }

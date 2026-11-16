@@ -1,5 +1,5 @@
 import { withTransaction, type Db } from '../db/pool.js';
-import type { Actor, User } from '../domain/types.js';
+import type { User } from '../domain/types.js';
 import { AppError, badRequest, conflict, unauthorized } from '../lib/errors.js';
 import {
   checkPasswordStrength,
@@ -9,7 +9,6 @@ import {
   verifyPassword,
 } from '../lib/password.js';
 import { SESSION_TOKEN_PATTERN, hashToken, newSessionToken } from '../lib/tokens.js';
-import { recordAudit } from '../repositories/audit.js';
 import * as sessions from '../repositories/sessions.js';
 import * as users from '../repositories/users.js';
 
@@ -52,7 +51,6 @@ export function createAuthService(db: Db, options: { sessionTtlDays: number }) {
           userAgent: meta.userAgent?.slice(0, 300) ?? null,
           ip: meta.ip,
         });
-        await recordAudit(tx, { userId: user.id, ip: meta.ip }, 'auth.login', 'user', user.id);
       });
 
       return { token, expiresAt: expiresAt.toISOString(), user: publicUser(user) };
@@ -69,15 +67,12 @@ export function createAuthService(db: Db, options: { sessionTtlDays: number }) {
       return { sessionId: session.sessionId, user: session.user };
     },
 
-    async logout(auth: AuthContext, actor: Actor): Promise<void> {
-      await withTransaction(db, async (tx) => {
-        await sessions.deleteSession(tx, auth.sessionId);
-        await recordAudit(tx, actor, 'auth.logout', 'user', auth.user.id);
-      });
+    async logout(auth: AuthContext): Promise<void> {
+      await sessions.deleteSession(db, auth.sessionId);
     },
 
     /** Changes the password and signs out every other device. */
-    async changePassword(auth: AuthContext, currentPassword: string, newPassword: string, actor: Actor) {
+    async changePassword(auth: AuthContext, currentPassword: string, newPassword: string) {
       const user = await users.findUserById(db, auth.user.id);
       if (!user) throw unauthorized();
       if (!(await verifyPassword(currentPassword, user.passwordHash))) {
@@ -91,8 +86,7 @@ export function createAuthService(db: Db, options: { sessionTtlDays: number }) {
       const hash = await hashPassword(newPassword);
       await withTransaction(db, async (tx) => {
         await users.updatePasswordHash(tx, user.id, hash);
-        const revoked = await sessions.deleteUserSessions(tx, user.id, auth.sessionId);
-        await recordAudit(tx, actor, 'auth.change_password', 'user', user.id, { revokedSessions: revoked });
+        await sessions.deleteUserSessions(tx, user.id, auth.sessionId);
       });
     },
 
@@ -102,17 +96,10 @@ export function createAuthService(db: Db, options: { sessionTtlDays: number }) {
       if (problem) throw badRequest(problem);
       if (await users.findUserByUsername(db, input.username))
         throw conflict('That username is already taken');
-      const user = await withTransaction(db, async (tx) => {
-        const created = await users.insertUser(tx, {
-          username: input.username,
-          displayName: input.displayName,
-          passwordHash: await hashPassword(input.password),
-        });
-        await recordAudit(tx, { userId: null, ip: null }, 'user.create', 'user', created.id, {
-          username: created.username,
-          via: 'cli',
-        });
-        return created;
+      const user = await users.insertUser(db, {
+        username: input.username,
+        displayName: input.displayName,
+        passwordHash: await hashPassword(input.password),
       });
       return publicUser(user);
     },
@@ -128,9 +115,6 @@ export function createAuthService(db: Db, options: { sessionTtlDays: number }) {
         await users.updatePasswordHash(tx, user.id, hash);
         await users.setUserActive(tx, user.id, true);
         await sessions.deleteUserSessions(tx, user.id);
-        await recordAudit(tx, { userId: null, ip: null }, 'user.reset_password', 'user', user.id, {
-          via: 'cli',
-        });
       });
       return publicUser(user);
     },

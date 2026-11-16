@@ -1,10 +1,9 @@
 import { withTransaction, type Db } from '../db/pool.js';
-import type { Actor, Ticket } from '../domain/types.js';
+import type { Ticket } from '../domain/types.js';
 import { AppError, badRequest, conflict, notFound } from '../lib/errors.js';
 import { activeSeasonYear } from '../lib/season-rules.js';
 import { cleanReasons } from '../lib/text.js';
 import { newId } from '../lib/tokens.js';
-import { recordAudit } from '../repositories/audit.js';
 import { getPerson } from '../repositories/people.js';
 import { listSeasons } from '../repositories/seasons.js';
 import { getSettings, reserveTicketNumbers } from '../repositories/settings.js';
@@ -32,7 +31,7 @@ export function createTicketsService(db: Db) {
     },
 
     /** Same behaviour as the app's createPayment, with stricter checks. */
-    createPayment(input: NewPaymentInput, actor: Actor): Promise<Ticket> {
+    createPayment(input: NewPaymentInput): Promise<Ticket> {
       return withTransaction(db, async (tx) => {
         const { settings } = await getSettings(tx, { forUpdate: true });
         if (!(await getPerson(tx, input.personId))) throw notFound('Person');
@@ -47,7 +46,7 @@ export function createTicketsService(db: Db) {
           if (existing.personId !== input.personId) throw badRequest('The ticket belongs to another person');
           if (existing.status === 'paid') throw conflict('This ticket is already paid');
 
-          const paid = await tickets.saveTicket(tx, {
+          return tickets.saveTicket(tx, {
             ...existing,
             amount: input.amount,
             reasons,
@@ -55,11 +54,6 @@ export function createTicketsService(db: Db) {
             status: 'paid',
             paidAt: now,
           });
-          await recordAudit(tx, actor, 'ticket.settle', 'ticket', paid.id, {
-            number: paid.number,
-            amount: paid.amount,
-          });
-          return paid;
         }
 
         const season = activeSeasonYear(await listSeasons(tx), settings);
@@ -92,63 +86,45 @@ export function createTicketsService(db: Db) {
             paidAt: now,
           },
         ]);
-        await recordAudit(tx, actor, 'payment.create', 'ticket', ticket!.id, {
-          number,
-          personId: input.personId,
-          kind: ticket!.kind,
-          amount: ticket!.amount,
-        });
         return ticket!;
       });
     },
 
     /** Marks a ticket paid now, optionally with a different amount. */
-    markPaid(id: string, amount: number | undefined, actor: Actor): Promise<Ticket> {
+    markPaid(id: string, amount: number | undefined): Promise<Ticket> {
       return withTransaction(db, async (tx) => {
         const ticket = await tickets.getTicket(tx, id, { forUpdate: true });
         if (!ticket) throw notFound('Ticket');
-        const paid = await tickets.saveTicket(tx, {
+        return tickets.saveTicket(tx, {
           ...ticket,
           status: 'paid',
           paidAt: new Date().toISOString(),
           amount: amount ?? ticket.amount,
         });
-        await recordAudit(tx, actor, 'ticket.pay', 'ticket', id, {
-          number: ticket.number,
-          before: { status: ticket.status, amount: ticket.amount },
-          amount: paid.amount,
-        });
-        return paid;
       });
     },
 
     /** Marks a ticket unpaid again; the amount goes back to what was due. */
-    markUnpaid(id: string, actor: Actor): Promise<Ticket> {
+    markUnpaid(id: string): Promise<Ticket> {
       return withTransaction(db, async (tx) => {
         const ticket = await tickets.getTicket(tx, id, { forUpdate: true });
         if (!ticket) throw notFound('Ticket');
         const { paidAt: _paidAt, ...rest } = ticket;
-        const unpaid = await tickets.saveTicket(tx, {
+        return tickets.saveTicket(tx, {
           ...rest,
           status: 'unpaid',
           amount: ticket.due ?? ticket.amount,
         });
-        await recordAudit(tx, actor, 'ticket.unpay', 'ticket', id, {
-          number: ticket.number,
-          before: { status: ticket.status, amount: ticket.amount, paidAt: ticket.paidAt },
-        });
-        return unpaid;
       });
     },
 
     /** Deletes a ticket. A deleted yearly ticket is remembered so it is not generated again. */
-    remove(id: string, actor: Actor): Promise<void> {
+    remove(id: string): Promise<void> {
       return withTransaction(db, async (tx) => {
         const ticket = await tickets.getTicket(tx, id, { forUpdate: true });
         if (!ticket) throw notFound('Ticket');
         await tickets.deleteTicket(tx, id);
         if (ticket.kind === 'annual') await tickets.addDismissal(tx, ticket.personId, ticket.season);
-        await recordAudit(tx, actor, 'ticket.delete', 'ticket', id, { ticket });
       });
     },
   };

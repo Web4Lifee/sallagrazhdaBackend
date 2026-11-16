@@ -1,7 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { actorOf } from '../http/context.js';
 import {
   EurosSchema,
   IdParamsSchema,
@@ -41,22 +40,22 @@ export function ticketRoutes(tickets: TicketsService): FastifyPluginAsync {
     app.get('/v1/tickets/:id', async (request) => tickets.get(parse(IdParamsSchema, request.params).id));
 
     app.post('/v1/payments', async (request, reply) => {
-      const ticket = await tickets.createPayment(parse(PaymentBody, request.body), actorOf(request));
+      const ticket = await tickets.createPayment(parse(PaymentBody, request.body));
       return reply.status(201).send(ticket);
     });
 
     app.post('/v1/tickets/:id/pay', async (request) => {
       const { id } = parse(IdParamsSchema, request.params);
       const body = parse(PayBody, request.body ?? undefined);
-      return tickets.markPaid(id, body?.amount, actorOf(request));
+      return tickets.markPaid(id, body?.amount);
     });
 
     app.post('/v1/tickets/:id/unpay', async (request) =>
-      tickets.markUnpaid(parse(IdParamsSchema, request.params).id, actorOf(request)),
+      tickets.markUnpaid(parse(IdParamsSchema, request.params).id),
     );
 
     app.delete('/v1/tickets/:id', async (request, reply) => {
-      await tickets.remove(parse(IdParamsSchema, request.params).id, actorOf(request));
+      await tickets.remove(parse(IdParamsSchema, request.params).id);
       return reply.status(204).send();
     });
   };

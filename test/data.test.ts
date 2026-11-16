@@ -131,13 +131,13 @@ describe('seasons and yearly tickets', () => {
 
   it('starts due seasons automatically (catching up at most 5)', async () => {
     await addPerson();
-    const started = await ctx.services.seasons.startDue(seasonStart(2029, 9), { userId: null, ip: null });
+    const started = await ctx.services.seasons.startDue(seasonStart(2029, 9));
     expect(started.map((s) => s.year)).toEqual([2027, 2028, 2029]);
     expect(started[0]!.startedAt).toBe(seasonStart(2027, 9).toISOString());
     expect(await tickets()).toHaveLength(3);
 
     // Nothing more is due yet.
-    expect(await ctx.services.seasons.startDue(seasonStart(2029, 9), { userId: null, ip: null })).toEqual([]);
+    expect(await ctx.services.seasons.startDue(seasonStart(2029, 9))).toEqual([]);
   });
 });
 
@@ -395,16 +395,5 @@ describe('sync and import', () => {
     expect(res.statusCode).toBe(400);
     expect(JSON.stringify(res.json().error.details)).toContain('Duplicate ticket number: 3');
     expect((await call('GET', '/v1/people')).json()).toEqual([]);
-  });
-
-  it('writes an audit trail for changes', async () => {
-    const { person } = await addPerson();
-    await call('POST', '/v1/payments', { personId: person.id, amount: 5, reasons: [] });
-    await call('DELETE', `/v1/people/${person.id}`);
-    const { rows } = await ctx.db.query<{ action: string; user_id: string | null }>(
-      'SELECT action, user_id FROM audit_log ORDER BY id',
-    );
-    expect(rows.map((r) => r.action)).toEqual(['person.create', 'payment.create', 'person.delete']);
-    expect(rows.every((r) => r.user_id)).toBe(true);
   });
 });

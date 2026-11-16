@@ -1,8 +1,7 @@
 import { withTransaction, type Db } from '../db/pool.js';
-import type { Actor, Snapshot } from '../domain/types.js';
+import type { Snapshot } from '../domain/types.js';
 import { AppError, badRequest } from '../lib/errors.js';
 import { capitalize, cleanReasons } from '../lib/text.js';
-import { recordAudit } from '../repositories/audit.js';
 import { countPeople, insertPeople, listPeople } from '../repositories/people.js';
 import { insertSeason, listSeasons } from '../repositories/seasons.js';
 import { getSettings, saveSettings, setNextTicketNumber } from '../repositories/settings.js';
@@ -52,7 +51,7 @@ export function createSyncService(db: Db) {
      * One-time move of the data saved on the phone to the server.
      * Only works while the server has no people, tickets or seasons, so it can never overwrite live data.
      */
-    import(data: Snapshot, actor: Actor): Promise<ImportResult> {
+    import(data: Snapshot): Promise<ImportResult> {
       return withTransaction(db, async (tx) => {
         await getSettings(tx, { forUpdate: true });
         const existing = (await countPeople(tx)) + (await countTickets(tx)) + (await listSeasons(tx)).length;
@@ -98,14 +97,12 @@ export function createSyncService(db: Db) {
         const highest = data.tickets.reduce((max, t) => Math.max(max, t.number), 0);
         await setNextTicketNumber(tx, Math.max(data.nextTicketNumber, highest + 1));
 
-        const result: ImportResult = {
+        return {
           people: data.people.length,
           tickets: data.tickets.length,
           seasons: data.seasons.length,
           dismissedAnnual: dismissals.length,
         };
-        await recordAudit(tx, actor, 'data.import', 'snapshot', null, result);
-        return result;
       });
     },
   };

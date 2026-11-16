@@ -153,12 +153,6 @@ describe('authentication', () => {
     await expect(login(ctx)).rejects.toThrow();
     await expect(login(ctx, { username: 'admin', password: newPassword })).resolves.toBeTruthy();
   });
-
-  it('records logins in the audit log', async () => {
-    await login(ctx);
-    const { rows } = await ctx.db.query<{ action: string }>('SELECT action FROM audit_log');
-    expect(rows.map((r) => r.action)).toContain('auth.login');
-  });
 });
 
 describe('abuse protection', () => {

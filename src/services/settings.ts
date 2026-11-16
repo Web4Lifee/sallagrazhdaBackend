@@ -1,7 +1,6 @@
 import { withTransaction, type Db } from '../db/pool.js';
-import type { Actor, Settings } from '../domain/types.js';
+import type { Settings } from '../domain/types.js';
 import { cleanReasons } from '../lib/text.js';
-import { recordAudit } from '../repositories/audit.js';
 import { getSettings, saveSettings } from '../repositories/settings.js';
 
 export function createSettingsService(db: Db) {
@@ -11,7 +10,7 @@ export function createSettingsService(db: Db) {
     },
 
     /** Changes only the given fields. Existing tickets keep the fee they were created with. */
-    update(patch: Partial<Settings>, actor: Actor): Promise<Settings> {
+    update(patch: Partial<Settings>): Promise<Settings> {
       return withTransaction(db, async (tx) => {
         const { settings: before } = await getSettings(tx, { forUpdate: true });
         const after: Settings = { ...before, ...patch };
@@ -20,16 +19,6 @@ export function createSettingsService(db: Db) {
         if (patch.organization !== undefined) after.organization = patch.organization.trim();
 
         await saveSettings(tx, after);
-
-        const changed = (Object.keys(patch) as (keyof Settings)[]).filter(
-          (key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]),
-        );
-        if (changed.length) {
-          await recordAudit(tx, actor, 'settings.update', 'settings', null, {
-            before: Object.fromEntries(changed.map((k) => [k, before[k]])),
-            after: Object.fromEntries(changed.map((k) => [k, after[k]])),
-          });
-        }
         return after;
       });
     },

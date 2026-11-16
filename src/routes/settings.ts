@@ -1,7 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { actorOf } from '../http/context.js';
 import { EurosSchema, MonthSchema, ReasonsSchema, SeasonYearSchema, parse } from '../lib/validation.js';
 import type { SettingsService } from '../services/settings.js';
 
@@ -32,8 +31,6 @@ export function settingsRoutes(settings: SettingsService): FastifyPluginAsync {
     app.get('/v1/settings', async () => settings.get());
 
     // Send only the fields you want to change.
-    app.patch('/v1/settings', async (request) =>
-      settings.update(parse(SettingsPatch, request.body), actorOf(request)),
-    );
+    app.patch('/v1/settings', async (request) => settings.update(parse(SettingsPatch, request.body)));
   };
 }

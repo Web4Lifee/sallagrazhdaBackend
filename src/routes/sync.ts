@@ -1,7 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { actorOf } from '../http/context.js';
 import {
   EurosSchema,
   IdSchema,
@@ -81,7 +80,7 @@ export function syncRoutes(sync: SyncService): FastifyPluginAsync {
 
     // One-time upload of the phone's data to an empty server.
     app.post('/v1/import', { bodyLimit: MAX_IMPORT_BYTES }, async (request, reply) => {
-      const result = await sync.import(parse(SnapshotSchema, request.body), actorOf(request));
+      const result = await sync.import(parse(SnapshotSchema, request.body));
       return reply.status(201).send(result);
     });
   };

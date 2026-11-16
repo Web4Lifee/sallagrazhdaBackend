@@ -49,7 +49,7 @@ export async function createTestContext(env: Record<string, string> = {}): Promi
 
 /** Empties all app data and puts the settings back to the app's defaults. Keeps users and sessions. */
 export async function resetData(db: Db): Promise<void> {
-  await db.query('TRUNCATE people, tickets, seasons, annual_dismissals, audit_log RESTART IDENTITY CASCADE');
+  await db.query('TRUNCATE people, tickets, seasons, annual_dismissals RESTART IDENTITY CASCADE');
   await db.query(
     `UPDATE settings SET admin_name = 'Administratori', organization = 'Mirëmbajtja e Oborrit',
        goal_cents = 250000, annual_fee_cents = 3500, season_start_month = 9, season_start_year = 2027,

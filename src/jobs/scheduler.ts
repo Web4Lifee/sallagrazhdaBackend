@@ -19,7 +19,7 @@ export function startScheduler(
     running = true;
     try {
       if (options.autoStartSeasons) {
-        const started = await services.seasons.startDue(new Date(), { userId: null, ip: null });
+        const started = await services.seasons.startDue(new Date());
         if (started.length) log.info({ seasons: started.map((s) => s.year) }, 'started due seasons');
       }
       const removed = await services.auth.deleteExpiredSessions();

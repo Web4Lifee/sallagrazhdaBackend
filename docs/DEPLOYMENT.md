@@ -133,12 +133,6 @@ docker compose -f docker-compose.prod.yml logs -f caddy
 
 Logs rotate automatically (5 × 10 MB per service). Point a free uptime monitor (e.g. UptimeRobot, Better Stack) at `https://api.example.com/ready`, which returns `503` when the database is unreachable.
 
-The `audit_log` table records who changed what:
-
-```bash
-docker compose -f docker-compose.prod.yml exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT created_at, action, entity, entity_id FROM audit_log ORDER BY id DESC LIMIT 20"'
-```
-
 ## Using a managed database instead
 
 Remove the `db` and `backup` services from `docker-compose.prod.yml` and set `DATABASE_URL` for `api` and `migrate` to the provider's URL, with `DATABASE_SSL=verify-full` (or `require` if the provider's certificate can't be verified). Use the provider's backups.

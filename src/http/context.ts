@@ -1,6 +1,5 @@
 import type { FastifyRequest } from 'fastify';
 
-import type { Actor } from '../domain/types.js';
 import { unauthorized } from '../lib/errors.js';
 import type { AuthContext, AuthService } from '../services/auth.js';
 
@@ -25,8 +24,4 @@ export function requireAuth(auth: AuthService) {
 export function authOf(request: FastifyRequest): AuthContext {
   if (!request.auth) throw unauthorized();
   return request.auth;
-}
-
-export function actorOf(request: FastifyRequest): Actor {
-  return { userId: request.auth?.user.id ?? null, ip: request.ip ?? null };
 }
