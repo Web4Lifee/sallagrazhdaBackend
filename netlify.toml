@@ -7,7 +7,6 @@
   # Holds only robots.txt. Without it Netlify publishes the whole repository as public files.
   publish = "public"
 
-[functions]
-  # Bundle the dependencies into each function. Unbundled, Fastify's light-my-request require()s the
-  # ES-module-only `cookie` package, which fails on Lambda runtimes without require(esm) support.
-  node_bundler = "esbuild"
+# Netlify ships node_modules unbundled with these functions, and its function runtime can't
+# require() ES modules. So package.json "overrides" keeps light-my-request (used by Fastify's
+# inject) on the CommonJS `cookie` 1.x; cookie 2 is ES-module-only.

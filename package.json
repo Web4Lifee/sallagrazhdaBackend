@@ -47,6 +47,9 @@
   "overrides": {
     "@typescript-eslint/typescript-estree": {
       "minimatch": "^11.0.8"
+    },
+    "light-my-request": {
+      "cookie": "^1.1.1"
     }
   }
 }

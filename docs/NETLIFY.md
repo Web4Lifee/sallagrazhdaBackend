@@ -52,6 +52,7 @@ Everything else has a default in `src/netlify.ts` (production mode, Europe/Tiran
 
 - **Region:** on free plans Netlify runs functions in US East (Ohio). Every database query travels to the Supabase region and back, so a Supabase project in US East (Ohio) answers fastest; one in Europe adds about 0.1 s per query.
 - **Cold starts:** a function instance that hasn't run for a while takes a moment to start. After a minute without requests the API also opens a fresh database connection, because Netlify freezes idle instances and their connections can be cut meanwhile.
+- **Dependencies are not bundled:** Netlify copies `node_modules` into each function as they are, and its function runtime can't `require()` ES modules. That's why `package.json` `overrides` keeps `light-my-request` (used by Fastify's `inject`) on the CommonJS `cookie` 1.x. Check the same thing before adding a dependency that is ES-module-only.
 - **Rate limits** are counted per function instance. Netlify starts extra instances for requests that arrive at the same time, so the login limit is looser than on a single server.
 
 ## Free plan limits
