@@ -40,8 +40,12 @@ export async function findActiveSession(q: Queryable, tokenHash: Buffer): Promis
   };
 }
 
-export async function touchSession(q: Queryable, sessionId: string): Promise<void> {
-  await q.query('UPDATE sessions SET last_used_at = now() WHERE id = $1', [sessionId]);
+/** Records that the session was used and moves its end to `expiresAt`. */
+export async function touchSession(q: Queryable, sessionId: string, expiresAt: Date): Promise<void> {
+  await q.query('UPDATE sessions SET last_used_at = now(), expires_at = $2 WHERE id = $1', [
+    sessionId,
+    expiresAt,
+  ]);
 }
 
 export async function deleteSession(q: Queryable, sessionId: string): Promise<void> {

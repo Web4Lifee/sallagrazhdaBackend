@@ -45,7 +45,7 @@ Base URL: `http://localhost:3000` locally, `https://YOUR_DOMAIN` in production.
 | POST   | `/v1/auth/logout`          | –                                  | `204`                           |
 | POST   | `/v1/auth/change-password` | `{ currentPassword, newPassword }` | `204`, other devices signed out |
 
-Store the token securely on the phone (e.g. `expo-secure-store`), never in plain AsyncStorage. Sessions last `SESSION_TTL_DAYS` (default 30); after that, `401` → show the login screen.
+Store the token securely on the phone (e.g. `expo-secure-store`), never in plain AsyncStorage. A session stays valid while it is used: every use moves its end `SESSION_TTL_DAYS` (default 365) ahead, so the phone stays signed in until it logs out, the password changes, or it goes unused that long. A `401` means the session ended → show the login screen. `expiresAt` in the login response is only the first end date.
 
 ## Sync
 

@@ -113,6 +113,19 @@ describe('authentication', () => {
     expect((await api(ctx, token)('GET', '/v1/people')).statusCode).toBe(401);
   });
 
+  it('keeps a session alive while it is used', async () => {
+    const token = await login(ctx);
+    // Last used 10 minutes ago and about to end: using it now pushes the end a year ahead.
+    await ctx.db.query(
+      "UPDATE sessions SET last_used_at = now() - interval '10 minutes', expires_at = now() + interval '1 minute'",
+    );
+    expect((await api(ctx, token)('GET', '/v1/auth/me')).statusCode).toBe(200);
+    const { rows } = await ctx.db.query<{ days_left: number }>(
+      'SELECT extract(epoch FROM expires_at - now()) / 86400 AS days_left FROM sessions',
+    );
+    expect(Number(rows[0]!.days_left)).toBeGreaterThan(364);
+  });
+
   it('rejects expired sessions', async () => {
     const token = await login(ctx);
     await ctx.db.query("UPDATE sessions SET expires_at = now() - interval '1 second'");

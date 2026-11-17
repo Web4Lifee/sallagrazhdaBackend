@@ -14,13 +14,20 @@ import * as users from '../repositories/users.js';
 
 /** Don't write last_used_at on every request; once every few minutes is enough. */
 const TOUCH_INTERVAL_MS = 5 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type LoginResult = { token: string; expiresAt: string; user: User };
 export type AuthContext = { sessionId: string; user: User };
 
 const publicUser = (u: User): User => ({ id: u.id, username: u.username, displayName: u.displayName });
 
+/**
+ * Sessions stay valid while they are used: each use moves their end `sessionTtlDays` ahead, so a
+ * phone stays signed in until it logs out, the password changes, or it goes unused that long.
+ */
 export function createAuthService(db: Db, options: { sessionTtlDays: number }) {
+  const newExpiry = () => new Date(Date.now() + options.sessionTtlDays * DAY_MS);
+
   return {
     async login(
       username: string,
@@ -39,7 +46,7 @@ export function createAuthService(db: Db, options: { sessionTtlDays: number }) {
       }
 
       const token = newSessionToken();
-      const expiresAt = new Date(Date.now() + options.sessionTtlDays * 24 * 60 * 60 * 1000);
+      const expiresAt = newExpiry();
       const newHash = needsRehash(user.passwordHash) ? await hashPassword(password) : null;
 
       await withTransaction(db, async (tx) => {
@@ -62,7 +69,7 @@ export function createAuthService(db: Db, options: { sessionTtlDays: number }) {
       const session = await sessions.findActiveSession(db, hashToken(token));
       if (!session) return null;
       if (Date.now() - session.lastUsedAt.getTime() > TOUCH_INTERVAL_MS) {
-        await sessions.touchSession(db, session.sessionId);
+        await sessions.touchSession(db, session.sessionId, newExpiry());
       }
       return { sessionId: session.sessionId, user: session.user };
     },

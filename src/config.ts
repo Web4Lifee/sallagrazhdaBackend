@@ -53,7 +53,8 @@ const EnvSchema = z.object({
   CORS_ORIGINS: list.default([]),
   TRUST_PROXY: trustProxy.default(false),
 
-  SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+  /** Days a session may go unused before it ends; every use starts the count again. */
+  SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(365),
   /** Requests per minute per IP across the whole API. */
   RATE_LIMIT_MAX: z.coerce.number().int().min(10).max(100_000).default(300),
   /** Failed-or-not login attempts allowed per IP per 15 minutes. */

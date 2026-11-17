@@ -59,7 +59,7 @@ services:
       TZ: ${TZ:-Europe/Tirane}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-30}
+      SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-365}
     depends_on:
       migrate:
         condition: service_completed_successfully
