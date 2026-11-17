@@ -135,7 +135,7 @@ Logs rotate automatically (5 × 10 MB per service). Point a free uptime monitor 
 
 ## Using a managed database instead
 
-Remove the `db` and `backup` services from `docker-compose.prod.yml` and set `DATABASE_URL` for `api` and `migrate` to the provider's URL, with `DATABASE_SSL=verify-full` (or `require` if the provider's certificate can't be verified). Use the provider's backups.
+Remove the `db` and `backup` services from `docker-compose.prod.yml` and set `DATABASE_URL` for `api` and `migrate` to the provider's URL, with `DATABASE_SSL=verify-full`. If the provider signs its certificates with its own CA, add it with `DATABASE_SSL_CA` (`supabase` for Supabase's bundled root, or the provider's PEM certificate). Use `require` only if the certificate can't be verified at all. Use the provider's backups.
 
 ## Go-live checklist
 

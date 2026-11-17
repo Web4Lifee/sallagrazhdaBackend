@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { SUPABASE_ROOT_CA_2021 } from './db/supabase-ca.js';
+
 /** Reads "true"/"false"/"1"/"0" style env values. */
 const bool = z
   .enum(['true', 'false', '1', '0', 'yes', 'no'])
@@ -47,6 +49,18 @@ const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   /** "disable" for the bundled Docker database, "require" or "verify-full" for a managed database. */
   DATABASE_SSL: z.enum(['disable', 'require', 'verify-full']).default('disable'),
+  /**
+   * Extra CA that verify-full trusts: "supabase" for the bundled Supabase root, or a PEM certificate.
+   * Empty: only Node's default CAs.
+   */
+  DATABASE_SSL_CA: z
+    .string()
+    .trim()
+    .default('')
+    .refine((v) => v === '' || v === 'supabase' || v.startsWith('-----BEGIN CERTIFICATE-----'), {
+      message: 'Use "supabase" or a PEM certificate',
+    })
+    .transform((v) => (v === 'supabase' ? SUPABASE_ROOT_CA_2021 : v || undefined)),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
 
   /** Browser origins allowed to call the API (only needed for the web build of the app). */
@@ -95,6 +109,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     database: {
       url: config.DATABASE_URL,
       ssl: config.DATABASE_SSL,
+      ca: config.DATABASE_SSL_CA,
       poolMax: config.DATABASE_POOL_MAX,
     },
     corsOrigins: config.CORS_ORIGINS,

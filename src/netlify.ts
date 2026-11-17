@@ -18,8 +18,9 @@ export function applyNetlifyDefaults(env: NodeJS.ProcessEnv = process.env): void
   env.NODE_ENV ??= 'production';
   // Seasons start at midnight on the 1st of the month in this time zone. Lambda sets TZ to ":UTC".
   if (!env.TZ || env.TZ.startsWith(':')) env.TZ = 'Europe/Tirane';
-  // Supabase only accepts encrypted connections.
-  env.DATABASE_SSL ??= 'require';
+  // Encrypted and verified: Supabase's certificates chain to its own root CA, bundled in src/db/supabase-ca.ts.
+  env.DATABASE_SSL ??= 'verify-full';
+  env.DATABASE_SSL_CA ??= 'supabase';
   // One request at a time per instance; 2 leaves room for a query beside an open transaction.
   env.DATABASE_POOL_MAX ??= '2';
 }

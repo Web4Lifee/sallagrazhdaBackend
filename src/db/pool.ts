@@ -14,7 +14,8 @@ export type Queryable = Pick<pg.Pool, 'query'> | Pick<pg.PoolClient, 'query'>;
 /** Stop runaway queries and forgotten transactions instead of letting them hold connections forever. */
 const SESSION_SETTINGS = 'SET statement_timeout = 15000; SET idle_in_transaction_session_timeout = 30000';
 
-export function createPool(database: Config['database']): Db {
+/** `ca` is optional so tests and scripts can pass just a URL. */
+export function createPool(database: Omit<Config['database'], 'ca'> & { ca?: string | undefined }): Db {
   const pool = new pg.Pool({
     connectionString: database.url,
     max: database.poolMax,
@@ -22,7 +23,13 @@ export function createPool(database: Config['database']): Db {
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,
     application_name: 'sallagrazhda-backend',
-    ssl: database.ssl === 'disable' ? false : { rejectUnauthorized: database.ssl === 'verify-full' },
+    // verify-full checks the certificate chain (against `ca` too) and the host name; require only encrypts.
+    ssl:
+      database.ssl === 'disable'
+        ? false
+        : database.ssl === 'verify-full'
+          ? { rejectUnauthorized: true, ...(database.ca && { ca: database.ca }) }
+          : { rejectUnauthorized: false },
     // Set on each new connection, before it is handed out, rather than as connection parameters,
     // which poolers such as Supabase's ignore. A failure here fails that checkout.
     onConnect: async (client) => {

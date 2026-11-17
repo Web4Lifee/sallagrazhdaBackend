@@ -118,6 +118,11 @@ describe('config', () => {
   });
 
   it('refuses spoofable proxy settings', () => {
+    expect(
+      loadConfig({ ...base, DATABASE_SSL: 'verify-full', DATABASE_SSL_CA: 'supabase' }).database.ca,
+    ).toContain('BEGIN CERTIFICATE');
+    expect(loadConfig(base).database.ca).toBeUndefined();
+    expect(() => loadConfig({ ...base, DATABASE_SSL_CA: 'not a certificate' })).toThrow(/DATABASE_SSL_CA/);
     expect(() => loadConfig({ ...base, TRUST_PROXY: 'true' })).toThrow(/TRUST_PROXY/);
     expect(() => loadConfig({ ...base, TRUST_PROXY: '1' })).toThrow(/TRUST_PROXY/);
     expect(loadConfig({ ...base, TRUST_PROXY: 'uniquelocal' }).trustProxy).toEqual(['uniquelocal']);
